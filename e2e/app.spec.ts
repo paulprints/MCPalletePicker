@@ -173,13 +173,24 @@ test.describe('exports', () => {
     expect(bytes.readUInt32BE(16)).toBe(1600)
   })
 
-  test('the WorldEdit pattern and share link are copied', async ({ page, context }) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  test('the WorldEdit pattern and share link are copied', async ({ page }) => {
+    // The system clipboard needs window focus, which parallel headless runs
+    // don't guarantee: record what the app copies instead.
+    await page.addInitScript(() => {
+      const w = window as unknown as { __copied: string }
+      w.__copied = ''
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async (t: string) => void (w.__copied = t) },
+        configurable: true,
+      })
+    })
+    const copied = () => page.evaluate(() => (window as unknown as { __copied: string }).__copied)
     await uploadImage(page, concretePng())
     await page.getByTestId('export-worldedit').click()
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('50%white_concrete,30%red_concrete,20%blue_concrete')
+    await expect.poll(copied).toBe('50%white_concrete,30%red_concrete,20%blue_concrete')
     await page.getByTestId('export-link').click()
-    const link = await page.evaluate(() => navigator.clipboard.readText())
+    await expect.poll(copied).toContain('#p=')
+    const link = await copied()
     expect(link).toContain('#p=white_concrete.cfd5d6.50,red_concrete.')
     // The link opens the same palette, without the image
     await page.goto(link)
