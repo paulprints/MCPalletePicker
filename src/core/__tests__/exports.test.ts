@@ -4,9 +4,6 @@ import { hexToLab, labToHex } from '../color'
 import {
   decodeShare,
   encodeShare,
-  formatStacks,
-  materialRows,
-  materialsCsv,
   paletteJson,
   paletteText,
   percentages,
@@ -75,19 +72,5 @@ describe('share links', () => {
     // Missing colours fall back to the block's own, missing shares to an even split
     expect(loose.entries[1].target).toEqual(getBlock('oak_planks')!.side.lab)
     expect(loose.entries[0].coverage).toBeCloseTo(1 / 3, 5)
-  })
-})
-
-describe('materials', () => {
-  it('counts stacks and shulker boxes', () => {
-    const rows = materialRows([getBlock('stone')!, getBlock('oak_planks')!], [1728, 70])
-    expect(rows[0]).toMatchObject({ count: 1728, stacks: 27, remainder: 0, shulkers: 1 })
-    expect(rows[1]).toMatchObject({ count: 70, stacks: 1, remainder: 6 })
-    expect(formatStacks(70)).toBe('1 stack + 6')
-    expect(formatStacks(128)).toBe('2 stacks')
-    expect(formatStacks(5)).toBe('5')
-    const csv = materialsCsv(rows)
-    expect(csv.split('\n')[0]).toBe('Block,ID,Count,Stacks,Remainder,Shulker boxes')
-    expect(csv).toContain('Stone,minecraft:stone,1728,27,0,1.00')
   })
 })

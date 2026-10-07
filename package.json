@@ -2,7 +2,7 @@
   "name": "mc-palette-picker",
   "private": true,
   "version": "1.0.0",
-  "description": "Drag and drop any image to turn it into a Minecraft block palette: colour extraction, texture-aware block matching, gradients and pixel-art schematics. Runs entirely in the browser; deploys to Vercel as a static site.",
+  "description": "Drop in an image, or paste a link to one, and get a Minecraft block palette that matches it: colour extraction, texture-aware block matching and gradients. Deploys to Vercel with no configuration.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "clsx": "^2.1.1",
-    "fflate": "^0.8.3",
     "lucide-react": "^1.52.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

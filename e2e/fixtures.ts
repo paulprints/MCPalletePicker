@@ -27,6 +27,8 @@ export const test = base.extend<{ offlineAssets: void }>({
         }
         return route.continue()
       })
+      // The public image mirror is the last resort for links; keep tests offline and deterministic
+      await context.route(/^https:\/\/wsrv\.nl\//, (route) => route.abort())
       await use()
     },
     { auto: true },

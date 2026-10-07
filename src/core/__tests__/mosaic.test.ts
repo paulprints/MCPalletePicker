@@ -40,7 +40,7 @@ describe('buildMosaic', () => {
 
   it('maps every opaque cell to the nearest block and counts them', () => {
     const img = makeImage(30, 10, (x) => (x < 10 ? [8, 10, 15] : x < 20 ? [207, 213, 214] : [0, 0, 0, 0]))
-    const m = buildMosaic(resampleToGrid(img, 30, 10), [black, white, red], { dither: 'none', surface: 'side' })
+    const m = buildMosaic(resampleToGrid(img, 30, 10), [black, white, red], { surface: 'side' })
     expect(m.blocks.map((b) => b.id).sort()).toEqual(['black_concrete', 'white_concrete'])
     expect(m.counts.reduce((a, b) => a + b, 0)).toBe(200)
     expect(m.cells[0]).toBeGreaterThanOrEqual(0)
@@ -50,21 +50,8 @@ describe('buildMosaic', () => {
     expect(m.meanError).toBeLessThan(0.02)
   })
 
-  it('dithers a mid grey into a mix of black and white', () => {
-    const img = makeImage(32, 32, () => [128, 128, 128])
-    const grid = resampleToGrid(img, 32, 32)
-    const plain = buildMosaic(grid, [black, white], { dither: 'none', surface: 'side' })
-    expect(plain.blocks).toHaveLength(1)
-    for (const dither of ['floyd-steinberg', 'ordered'] as const) {
-      const m = buildMosaic(grid, [black, white], { dither, surface: 'side', ditherStrength: 1 })
-      expect(m.blocks, dither).toHaveLength(2)
-      const share = Math.min(...m.counts) / 1024
-      expect(share, dither).toBeGreaterThan(0.2)
-    }
-  })
-
   it('returns an empty mosaic without candidates', () => {
-    const m = buildMosaic(resampleToGrid(makeImage(4, 4, () => [1, 2, 3]), 4, 4), [], { dither: 'none', surface: 'side' })
+    const m = buildMosaic(resampleToGrid(makeImage(4, 4, () => [1, 2, 3]), 4, 4), [], { surface: 'side' })
     expect(m.blocks).toEqual([])
     expect(Array.from(m.cells).every((c) => c === -1)).toBe(true)
   })

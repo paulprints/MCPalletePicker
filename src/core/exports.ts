@@ -1,8 +1,8 @@
 /**
- * Text exports of a palette (WorldEdit patterns, plain lists, JSON), share
- * links, and material lists for pixel art.
+ * Text exports of a palette (WorldEdit patterns, plain lists, JSON) and share
+ * links.
  */
-import { getBlock, type BlockInfo } from './blocks'
+import { getBlock } from './blocks'
 import { hexToLab, labToHex, type Lab } from './color'
 
 export interface PaletteEntry {
@@ -119,50 +119,4 @@ export function decodeShare(hash: string): SharedPalette | null {
   if (!entries.length) return null
   if (entries.every((e) => e.coverage === 0)) entries.forEach((e) => (e.coverage = 1 / entries.length))
   return { title: params.get('n')?.slice(0, 80) ?? '', entries: entries.slice(0, 24) }
-}
-
-// ---------------------------------------------------------------------------
-// Material lists
-// ---------------------------------------------------------------------------
-
-export interface MaterialRow {
-  block: BlockInfo
-  count: number
-  stacks: number
-  remainder: number
-  /** Shulker boxes needed (27 stacks each), fractional. */
-  shulkers: number
-}
-
-const STACK = 64
-const SHULKER = 27 * STACK
-
-export function materialRows(blocks: BlockInfo[], counts: number[]): MaterialRow[] {
-  return blocks
-    .map((block, i) => ({
-      block,
-      count: counts[i],
-      stacks: Math.floor(counts[i] / STACK),
-      remainder: counts[i] % STACK,
-      shulkers: counts[i] / SHULKER,
-    }))
-    .sort((a, b) => b.count - a.count || a.block.name.localeCompare(b.block.name))
-}
-
-/** "3 stacks + 12", "40", "1 stack". */
-export function formatStacks(count: number): string {
-  const stacks = Math.floor(count / STACK)
-  const rest = count % STACK
-  if (!stacks) return String(rest)
-  const s = `${stacks} stack${stacks === 1 ? '' : 's'}`
-  return rest ? `${s} + ${rest}` : s
-}
-
-export function materialsCsv(rows: MaterialRow[]): string {
-  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
-  const lines = ['Block,ID,Count,Stacks,Remainder,Shulker boxes']
-  for (const r of rows) {
-    lines.push([esc(r.block.name), `minecraft:${r.block.id}`, r.count, r.stacks, r.remainder, r.shulkers.toFixed(2)].join(','))
-  }
-  return lines.join('\n') + '\n'
 }

@@ -20,7 +20,7 @@ export function BlocksPreview({ width, height }: { width: number; height: number
     () => blockKey.split(',').map((id) => (id ? getBlock(id) : undefined)).filter((b): b is BlockInfo => !!b),
     [blockKey],
   )
-  const mosaic = useMemo(() => buildMosaic(grid, blocks, { dither: 'none', surface }), [grid, blocks, surface])
+  const mosaic = useMemo(() => buildMosaic(grid, blocks, { surface }), [grid, blocks, surface])
 
   useEffect(() => {
     const canvas = ref.current

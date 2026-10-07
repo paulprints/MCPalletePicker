@@ -37,6 +37,8 @@ export default defineConfig({
   ],
   webServer: {
     command: `npm run build && npx vite preview --port ${PORT} --strictPort`,
+    // Lets the image proxy reach the tests' local "remote" image server
+    env: { IMAGE_PROXY_ALLOW_PRIVATE: '1' },
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

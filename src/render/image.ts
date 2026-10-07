@@ -1,13 +1,13 @@
 /**
- * Image decoding: turns a dropped/pasted/picked file into the pixel buffers
- * the colour engine works on. Nothing leaves the browser.
+ * Image decoding: turns a dropped, pasted, picked or downloaded image into the
+ * pixel buffers the colour engine works on.
  */
 import type { PixelSource } from '../core/extract'
 
 /** Longest side of the image used for colour extraction (~37k pixels). */
 export const ANALYSIS_SIZE = 192
-/** Longest side of the image kept for pixel art (enough for 256-block-wide art). */
-export const PIXEL_SIZE = 1024
+/** Longest side of the image kept for the "In blocks" preview (up to 160 blocks wide). */
+export const PIXEL_SIZE = 640
 const THUMB_SIZE = 160
 
 export interface LoadedImage {
@@ -98,7 +98,7 @@ export async function loadImage(blob: Blob, name: string): Promise<LoadedImage> 
   try {
     const { img, width, height } = await decode(blob, url)
     const analysis = rasterize(img, width, height, ANALYSIS_SIZE, false)
-    // Pixel art area-averages this further, so a smooth downscale is right here
+    // The blocks preview area-averages this further, so a smooth downscale is right here
     const pixels = rasterize(img, width, height, PIXEL_SIZE, true)
     const thumb = thumbnail(img, width, height)
     if ('close' in img) img.close()
@@ -112,23 +112,16 @@ export async function loadImage(blob: Blob, name: string): Promise<LoadedImage> 
   }
 }
 
-/** Fetches an image by URL (works for same-origin and CORS-enabled hosts only). */
-export async function fetchImage(url: string): Promise<{ blob: Blob; name: string }> {
-  let res: Response
-  try {
-    res = await fetch(url, { mode: 'cors' })
-  } catch {
-    throw new ImageLoadError('That website doesn’t allow its images to be read by other pages. Save the image and drop the file instead.')
-  }
-  if (!res.ok) throw new ImageLoadError(`Couldn’t download that image (HTTP ${res.status}).`)
-  const blob = await res.blob()
-  const name = decodeURIComponent(new URL(url, location.href).pathname.split('/').pop() || 'image')
-  return { blob, name }
-}
-
-/** "my_castle-ref.final.png" → "My castle ref final" */
+/** "my_castle-ref.final.png" → "My castle ref final"; "1280px-Starry_Night.jpg" → "Starry Night" */
 export function titleFromFileName(name: string): string {
-  const base = name.replace(/\.[a-z0-9]{2,5}$/i, '').replace(/[_\-.]+/g, ' ').replace(/\s+/g, ' ').trim()
+  const base = name
+    .replace(/[?#].*$/, '')
+    .replace(/\.[a-z0-9]{2,5}$/i, '')
+    // Wikimedia-style thumbnail prefixes
+    .replace(/^\d{2,4}px-/i, '')
+    .replace(/[_\-.+]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
   if (!base || /^(image|img|screenshot|untitled)$/i.test(base)) return 'Untitled palette'
   return base.charAt(0).toUpperCase() + base.slice(1)
 }

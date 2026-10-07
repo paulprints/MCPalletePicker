@@ -1,4 +1,3 @@
-import { gunzipSync } from 'node:zlib'
 import { readFileSync } from 'node:fs'
 import { ASSET_URL, CONCRETE, concretePng, expect, openSample, paletteBlocks, stripesPng, test, uploadImage } from './fixtures'
 
@@ -221,41 +220,16 @@ test.describe('gradients', () => {
   })
 })
 
-test.describe('pixel art', () => {
-  test('builds the image in blocks and downloads schematics', async ({ page }) => {
-    await uploadImage(page, concretePng())
-    await page.getByRole('tab', { name: /Pixel art/ }).click()
-    await expect(page.getByTestId('pixel-canvas')).toBeVisible()
-    await expect(page.getByTestId('materials').getByRole('listitem')).toHaveCount(3)
-    await expect(page.getByTestId('pixel-view')).toContainText('64 × 38 blocks')
-
-    const [lite] = await Promise.all([page.waitForEvent('download'), page.getByTestId('download-litematic').click()])
-    expect(lite.suggestedFilename()).toBe('stripes-64x38.litematic')
-    const nbt = gunzipSync(readFileSync((await lite.path())!))
-    expect(nbt.includes(Buffer.from('minecraft:red_concrete'))).toBe(true)
-    expect(nbt.includes(Buffer.from('BlockStatePalette'))).toBe(true)
-
-    const [schem] = await Promise.all([page.waitForEvent('download'), page.getByTestId('download-schem').click()])
-    expect(schem.suggestedFilename()).toBe('stripes-64x38.schem')
-    expect(gunzipSync(readFileSync((await schem.path())!)).includes(Buffer.from('Schematic'))).toBe(true)
-  })
-
-  test('can use every allowed block, with dithering', async ({ page }) => {
-    await openSample(page, 'impression-sunrise')
-    await page.getByRole('tab', { name: /Pixel art/ }).click()
-    const before = await page.getByTestId('materials').getByRole('listitem').count()
-    await page.getByRole('radio', { name: 'All allowed' }).click()
-    await page.getByTestId('dither').selectOption('floyd-steinberg')
-    await expect.poll(() => page.getByTestId('materials').getByRole('listitem').count()).toBeGreaterThan(before)
-  })
-})
-
-test('keyboard: 1/2/3 switch views', async ({ page }) => {
+test('keyboard: 1/2 switch views', async ({ page }) => {
   await openSample(page, 'great-wave')
   await page.keyboard.press('2')
   await expect(page.getByTestId('gradient-view')).toBeVisible()
-  await page.keyboard.press('3')
-  await expect(page.getByTestId('pixel-view')).toBeVisible()
   await page.keyboard.press('1')
   await expect(page.getByTestId('stage')).toBeVisible()
+})
+
+test('there is no schematic export', async ({ page }) => {
+  await openSample(page, 'great-wave')
+  await expect(page.getByRole('tab')).toHaveText(['Palette', 'Gradients'])
+  await expect(page.getByText(/litematic|\.schem/i)).toHaveCount(0)
 })

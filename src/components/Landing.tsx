@@ -1,14 +1,14 @@
-import { Blend, Boxes, ClipboardPaste, Grid3x3, ImagePlus, Lock, Palette, Trash2 } from 'lucide-react'
-import { useRef, useState, type ReactNode } from 'react'
+import { Blend, Boxes, ClipboardPaste, ImagePlus, Lock, Palette, Share2, Trash2 } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { BLOCKS, DATA_META, getBlock } from '../core/blocks'
 import { SAMPLES } from '../samples'
 import { toast } from '../store/toasts'
 import { usePalette } from '../store/usePalette'
 import { BlockIcon } from './BlockIcon'
+import { ImageSourceForm } from './ImageSourceForm'
 import { Logo } from './Logo'
-import { Button, Kbd } from './ui'
+import { Kbd } from './ui'
 
-const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/avif,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.avif,.bmp,.svg'
 
 const HERO_BLOCKS = ['cherry_planks', 'deepslate_tiles', 'moss_block', 'stripped_birch_log', 'light_blue_terracotta', 'copper_block']
 
@@ -19,7 +19,6 @@ export function Landing() {
   const saved = usePalette((s) => s.saved)
   const error = usePalette((s) => s.error)
   const busy = usePalette((s) => s.busy)
-  const inputRef = useRef<HTMLInputElement>(null)
   const [hover, setHover] = useState(false)
 
   const openSample = async (src: string, name: string) => {
@@ -56,8 +55,8 @@ export function Landing() {
             Turn any image into a <span className="text-accent-400">Minecraft block palette</span>.
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base text-ink-300 text-pretty sm:text-lg">
-            Drop in concept art, a photo or a painting. You get the blocks that match its colours, matched by texture as well as colour,
-            with stair and slab variants, gradients and a pixel-art schematic.
+            Drop in concept art, a photo or a painting, or paste a link to one. You get the blocks that match its colours, matched by
+            texture as well as colour, with their stair and slab variants and smooth gradients between them.
           </p>
         </section>
 
@@ -84,25 +83,11 @@ export function Landing() {
             <Kbd>V</Kbd>
             <ClipboardPaste size={14} className="ml-0.5" />
           </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Button variant="primary" size="lg" onClick={() => inputRef.current?.click()} disabled={busy}>
-              Choose image…
-            </Button>
+          <div className="mt-6">
+            <ImageSourceForm />
           </div>
-          <input
-            ref={inputRef}
-            type="file"
-            className="hidden"
-            accept={ACCEPT}
-            data-testid="file-input"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) void openImage(f, f.name)
-              e.target.value = ''
-            }}
-          />
           <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-ink-400">
-            <Lock size={13} /> Images are read in your browser and never uploaded.
+            <Lock size={13} /> Image files you choose never leave your browser.
           </p>
           {error && (
             <div role="alert" className="mt-6 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-left text-sm text-red-200">
@@ -200,8 +185,8 @@ export function Landing() {
           <Feature icon={<Blend size={20} />} title="Gradients">
             Fade smoothly between any two blocks, for roofs, walls and terrain transitions.
           </Feature>
-          <Feature icon={<Grid3x3 size={20} />} title="Pixel art">
-            Rebuild the image in blocks, with dithering, and download it as a Litematica or WorldEdit schematic with a material list.
+          <Feature icon={<Share2 size={20} />} title="Take it with you">
+            Download a palette card, copy a WorldEdit pattern weighted by the image, or share a link that opens the same palette.
           </Feature>
         </section>
         <p className="mx-auto mt-8 flex max-w-3xl items-center justify-center gap-2 text-center text-sm text-ink-400">

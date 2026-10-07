@@ -1,13 +1,12 @@
 /**
- * App state: the open image, the palette slots, settings, and the gradient and
- * pixel-art views. Pure palette logic lives in core/palette.ts.
+ * App state: the open image, the palette slots, settings and the gradient view.
+ * Pure palette logic lives in core/palette.ts.
  */
 import { create } from 'zustand'
 import { getBlock, LATEST_VERSION, VERSIONS, type Category } from '../core/blocks'
 import { decodeShare, type SharedPalette } from '../core/exports'
 import { toLabImage, type LabImage } from '../core/extract'
 import { allowedBlocks, type BlockFilter, type MatchOptions } from '../core/match'
-import type { Dither } from '../core/mosaic'
 import {
   addSlotAt,
   addSlotForBlock,
@@ -23,28 +22,20 @@ import {
   type Slot,
   type SortMode,
 } from '../core/palette'
-import type { Orientation } from '../core/schematic'
 import { labToHex, hexToLab } from '../core/color'
 import { ImageLoadError, loadImage, titleFromFileName, type LoadedImage } from '../render/image'
+import { fetchImageFromLink } from '../render/link'
 import { DEFAULT_SETTINGS, parseSaved, parseSettings, serializeSettings, type SavedPalette, type Settings } from './settings'
 import { readJson, writeJson } from './storage'
 import { toast } from './toasts'
 
-export type Tab = 'palette' | 'gradient' | 'pixels'
+export type Tab = 'palette' | 'gradient'
 export type { SavedPalette, Settings }
 
 export interface GradientState {
   from: string | null
   to: string | null
   steps: number
-}
-
-export interface PixelState {
-  width: number
-  source: 'palette' | 'all'
-  dither: Dither
-  orientation: Orientation
-  grid: boolean
 }
 
 const SETTINGS_KEY = 'mcpp:settings:v1'
@@ -63,13 +54,17 @@ interface State {
   seed: number
   tab: Tab
   busy: boolean
+  /** What the busy overlay says. */
+  busyLabel: string
   error: string | null
   eyedropper: boolean
   gradient: GradientState
-  pixel: PixelState
   saved: SavedPalette[]
 
-  openImage: (blob: Blob, name: string) => Promise<void>
+  /** Opens an image file; `title` overrides the title derived from the file name. */
+  openImage: (blob: Blob, name: string, title?: string) => Promise<boolean>
+  /** Downloads and opens the image behind a link (see render/link.ts). */
+  openLink: (link: string) => Promise<boolean>
   openShared: (shared: SharedPalette) => void
   openSaved: (id: string) => void
   goHome: () => void
@@ -97,7 +92,6 @@ interface State {
   setEyedropper: (on: boolean) => void
 
   setGradient: (patch: Partial<GradientState>) => void
-  setPixel: (patch: Partial<PixelState>) => void
 
   savePalette: () => void
   deleteSaved: (id: string) => void
@@ -139,14 +133,14 @@ export const usePalette = create<State>((set, get) => {
     seed: 1,
     tab: 'palette',
     busy: false,
+    busyLabel: '',
     error: null,
     eyedropper: false,
     gradient: { from: null, to: null, steps: 7 },
-    pixel: { width: 64, source: 'palette', dither: 'none', orientation: 'wall', grid: false },
     saved: parseSaved(readJson<unknown>(SAVED_KEY, null)),
 
-    openImage: async (blob, name) => {
-      set({ busy: true, error: null })
+    openImage: async (blob, name, title) => {
+      set({ busy: true, busyLabel: 'Reading colours…', error: null })
       try {
         const image = await loadImage(blob, name)
         const lab = toLabImage(image.analysis)
@@ -158,7 +152,7 @@ export const usePalette = create<State>((set, get) => {
           image,
           lab,
           shared: false,
-          title: titleFromFileName(name),
+          title: title || titleFromFileName(name),
           slots,
           seed: 1,
           selected: null,
@@ -168,10 +162,25 @@ export const usePalette = create<State>((set, get) => {
           gradient: { ...get().gradient, from: null, to: null },
         })
         if (location.hash) history.replaceState(null, '', location.pathname + location.search)
+        return true
       } catch (e) {
         const message = e instanceof ImageLoadError ? e.message : `Couldn’t open that image: ${(e as Error).message}`
         set({ busy: false, error: message })
         toast(message, 'error')
+        return false
+      }
+    },
+
+    openLink: async (link) => {
+      set({ busy: true, busyLabel: 'Downloading image…', error: null })
+      try {
+        const { blob, name, title } = await fetchImageFromLink(link)
+        return await get().openImage(blob, name, title)
+      } catch (e) {
+        const message = e instanceof ImageLoadError ? e.message : `Couldn’t open that link: ${(e as Error).message}`
+        set({ busy: false, error: message })
+        toast(message, 'error')
+        return false
       }
     },
 
@@ -322,7 +331,6 @@ export const usePalette = create<State>((set, get) => {
     setEyedropper: (on) => set({ eyedropper: on }),
 
     setGradient: (patch) => set({ gradient: { ...get().gradient, ...patch } }),
-    setPixel: (patch) => set({ pixel: { ...get().pixel, ...patch } }),
 
     savePalette: () => {
       const { slots, title, image, saved } = get()

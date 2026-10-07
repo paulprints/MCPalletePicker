@@ -11,6 +11,13 @@ const OUT = join(process.cwd(), 'docs', 'images')
 test.skip(!process.env.UPDATE_SCREENSHOTS, 'Set UPDATE_SCREENSHOTS=1 to regenerate the README screenshots')
 test.describe.configure({ mode: 'serial' })
 
+test('opening an image', async ({ page }) => {
+  await page.goto('/')
+  await page.getByTestId('link-input').fill('https://www.pinterest.com/pin/your-favourite-castle/')
+  await page.waitForTimeout(1500)
+  await page.getByTestId('dropzone').screenshot({ path: join(OUT, 'open-image.png') })
+})
+
 test('workspace', async ({ page }) => {
   await openSample(page, 'great-wave')
   await page.getByTestId('slot-1').getByTestId('alternatives-toggle').click()
@@ -31,15 +38,6 @@ test('gradient', async ({ page }) => {
   await page.getByTestId('gradient-steps').fill('9')
   await page.waitForTimeout(2500)
   await page.screenshot({ path: join(OUT, 'gradient.png') })
-})
-
-test('pixel art', async ({ page }) => {
-  await openSample(page, 'great-wave')
-  await page.getByRole('tab', { name: /Pixel art/ }).click()
-  await page.getByRole('radio', { name: 'All allowed' }).click()
-  await page.getByTestId('pixel-width').fill('128')
-  await page.waitForTimeout(3000)
-  await page.screenshot({ path: join(OUT, 'pixel-art.png') })
 })
 
 test('card', async ({ page }) => {

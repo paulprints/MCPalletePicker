@@ -11,6 +11,6 @@ test('mobile: the image, palette and settings all fit', async ({ page }) => {
   await page.getByRole('button', { name: 'Settings' }).click()
   await expect(page.getByRole('dialog', { name: 'Settings' }).getByTestId('settings')).toBeVisible()
   await page.getByRole('button', { name: 'Close' }).click()
-  await page.getByRole('tab', { name: /Pixel art/ }).click()
-  await expect(page.getByTestId('pixel-canvas')).toBeVisible()
+  await page.getByRole('tab', { name: /Gradients/ }).click()
+  await expect(page.getByTestId('gradient-strip')).toBeVisible()
 })
