@@ -103,26 +103,23 @@ test.describe('editing the palette', () => {
 
   test('dragging a marker re-samples its colour', async ({ page }) => {
     await uploadImage(page, concretePng())
-    const stage = page.getByTestId('stage')
-    const box = (await stage.boundingBox())!
     const marker = page.getByTestId('marker-3') // blue, on the right
-    const m = (await marker.boundingBox())!
-    await page.mouse.move(m.x + m.width / 2, m.y + m.height / 2)
+    // hover() waits for the marker to stop moving while the layout settles
+    await marker.hover()
     await page.mouse.down()
+    const box = (await page.getByTestId('stage').boundingBox())!
     await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 8 })
     await page.mouse.up()
     // It now sits on the red stripe, but red is taken, so it gets the next-best red
-    const blocks = await paletteBlocks(page)
-    expect(blocks).not.toContain('blue_concrete')
-    expect(blocks).toContain('red_concrete')
+    await expect.poll(() => paletteBlocks(page)).not.toContain('blue_concrete')
+    expect(await paletteBlocks(page)).toContain('red_concrete')
   })
 
   test('the eyedropper adds the colour under the cursor', async ({ page }) => {
     await uploadImage(page, stripesPng([[...CONCRETE.white, 70], [242, 178, 23, 30]]))
     await expect(page.locator('[data-testid^="slot-"][data-block]')).toHaveCount(2)
     await page.getByRole('button', { name: 'Add a colour' }).click()
-    const box = (await page.getByTestId('stage').boundingBox())!
-    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.8)
+    await page.getByTestId('stage').click({ position: { x: 60, y: 60 } })
     await expect(page.locator('[data-testid^="slot-"][data-block]')).toHaveCount(3)
   })
 

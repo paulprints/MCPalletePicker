@@ -158,15 +158,15 @@ input[type='range'].slider.vertical::-webkit-slider-thumb {
 }
 
 /* Palette markers on the image */
+/* Tailwind positions markers with the `translate` property, so grow them with
+   the independent `scale` property (a `transform` would stack on top). */
 .marker {
   touch-action: none;
-  transition:
-    transform 0.12s ease-out,
-    box-shadow 0.12s ease-out;
+  transition: scale 0.12s ease-out;
 }
 .marker:hover,
 .marker[data-active='true'] {
-  transform: translate(-50%, -50%) scale(1.15) !important;
+  scale: 1.15;
 }
 
 @keyframes fade-in {

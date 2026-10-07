@@ -220,6 +220,10 @@ function Marker({
         const { x, y } = toFraction(e.clientX, e.clientY)
         onMove(x, y, true)
       }}
+      onPointerCancel={() => {
+        dragging.current = false
+        cancelAnimationFrame(frame.current)
+      }}
       onKeyDown={(e) => {
         if (locked) return
         const step = e.shiftKey ? 0.05 : 0.01
