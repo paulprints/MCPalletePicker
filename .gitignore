@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+coverage
+*.local
+.vercel
+.DS_Store
+playwright-report
+test-results
+blob-report
+/scripts/.cache
+*.tsbuildinfo
