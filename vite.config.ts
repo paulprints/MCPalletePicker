@@ -19,6 +19,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: { proxy: mcAssetsProxy },
   preview: { proxy: mcAssetsProxy },
+  worker: { format: 'es' },
   build: {
     target: 'es2022',
     sourcemap: true,

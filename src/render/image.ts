@@ -80,7 +80,7 @@ function thumbnail(img: Drawable, width: number, height: number): string {
   const canvas = document.createElement('canvas')
   canvas.width = w
   canvas.height = h
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
   if (!ctx) return ''
   ctx.fillStyle = '#141822'
   ctx.fillRect(0, 0, w, h)

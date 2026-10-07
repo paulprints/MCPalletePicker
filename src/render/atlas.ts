@@ -8,6 +8,7 @@
  * kept in Cache Storage so later visits work offline.
  */
 import { DATA_META, type BlockInfo, type Face, type Surface } from '../core/blocks'
+import { compositeFace, type AtlasPixels, type Sprites } from './composite'
 
 const TAG = `${DATA_META.minecraftVersion}-atlas`
 const CACHE_NAME = 'mcpp-atlas-v1'
@@ -19,9 +20,10 @@ const SOURCES = [
 ]
 
 export interface Atlas {
-  image: CanvasImageSource
+  /** The decoded atlas, as raw pixels (it is never drawn as a whole). */
+  pixels: AtlasPixels
   /** Sprite rectangles [x, y, w, h] in pixels; animated sprites list all frames (h > w). */
-  sprites: Record<string, [number, number, number, number]>
+  sprites: Sprites
 }
 
 async function fetchAsset(path: string, kind: 'json' | 'blob'): Promise<unknown> {
@@ -54,15 +56,48 @@ async function fetchAsset(path: string, kind: 'json' | 'blob'): Promise<unknown>
 
 let loading: Promise<Atlas> | null = null
 
+/**
+ * Decodes the atlas PNG to raw pixels in a worker. Browsers without
+ * OffscreenCanvas in workers decode it on the main thread instead.
+ */
+async function decodeAtlas(blob: Blob): Promise<AtlasPixels> {
+  if (typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined') {
+    try {
+      return await new Promise<AtlasPixels>((resolve, reject) => {
+        const worker = new Worker(new URL('./atlas.worker.ts', import.meta.url), { type: 'module' })
+        worker.onmessage = (e: MessageEvent<{ ok: true; width: number; height: number; data: Uint8ClampedArray } | { ok: false; error: string }>) => {
+          worker.terminate()
+          if (e.data.ok) resolve({ width: e.data.width, height: e.data.height, data: e.data.data })
+          else reject(new Error(e.data.error))
+        }
+        worker.onerror = (e) => {
+          worker.terminate()
+          reject(new Error(e.message || 'Atlas worker failed'))
+        }
+        worker.postMessage(blob)
+      })
+    } catch {
+      // fall through to the main thread
+    }
+  }
+  const bitmap = await createImageBitmap(blob)
+  const canvas = Object.assign(document.createElement('canvas'), { width: bitmap.width, height: bitmap.height })
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) throw new Error('Canvas 2D is not available')
+  ctx.drawImage(bitmap, 0, 0)
+  bitmap.close()
+  const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  return { data, width, height }
+}
+
 /** Loads (once) the block texture atlas. */
 export function loadAtlas(): Promise<Atlas> {
   loading ??= (async () => {
     const [sprites, blob] = await Promise.all([
-      fetchAsset('all/data.min.json', 'json') as Promise<Atlas['sprites']>,
+      fetchAsset('all/data.min.json', 'json') as Promise<Sprites>,
       fetchAsset('all/atlas.png', 'blob') as Promise<Blob>,
     ])
-    const image = await createImageBitmap(blob)
-    return { image, sprites }
+    return { pixels: await decodeAtlas(blob), sprites }
   })().catch((e) => {
     loading = null
     throw e
@@ -82,7 +117,7 @@ function makeCanvas(w: number, h: number): AnyCanvas {
   return Object.assign(document.createElement('canvas'), { width: w, height: h })
 }
 
-const faceCache = new WeakMap<Atlas, Map<string, AnyCanvas>>()
+const faceCache = new WeakMap<Atlas, Map<string, AnyCanvas | null>>()
 
 /**
  * A face's layers composited into a 16×16 (first animation frame) canvas,
@@ -92,32 +127,15 @@ export function faceTexture(atlas: Atlas, face: Face): AnyCanvas | null {
   let cache = faceCache.get(atlas)
   if (!cache) faceCache.set(atlas, (cache = new Map()))
   const key = face.layers.map((l) => l.tex + (l.tint ?? '')).join('|')
-  const hit = cache.get(key)
-  if (hit) return hit
+  if (cache.has(key)) return cache.get(key)!
   const size = 16
-  const out = makeCanvas(size, size)
-  const ctx = out.getContext('2d') as Ctx2D | null
-  if (!ctx) return null
-  ctx.imageSmoothingEnabled = false
-  for (const layer of face.layers) {
-    const r = atlas.sprites[layer.tex]
-    if (!r) return null
-    const [x, y, w] = r
-    if (!layer.tint) {
-      ctx.drawImage(atlas.image, x, y, w, w, 0, 0, size, size)
-      continue
-    }
-    // Multiply the layer by its tint, keeping the layer's own alpha
-    const tmp = makeCanvas(size, size)
-    const t = tmp.getContext('2d') as Ctx2D
-    t.imageSmoothingEnabled = false
-    t.drawImage(atlas.image, x, y, w, w, 0, 0, size, size)
-    t.globalCompositeOperation = 'multiply'
-    t.fillStyle = layer.tint
-    t.fillRect(0, 0, size, size)
-    t.globalCompositeOperation = 'destination-in'
-    t.drawImage(atlas.image, x, y, w, w, 0, 0, size, size)
-    ctx.drawImage(tmp, 0, 0)
+  const px = compositeFace(atlas.pixels, atlas.sprites, face.layers, size)
+  let out: AnyCanvas | null = null
+  if (px) {
+    out = makeCanvas(size, size)
+    const ctx = out.getContext('2d', { willReadFrequently: true }) as Ctx2D | null
+    if (ctx) ctx.putImageData(new ImageData(px, size, size), 0, 0)
+    else out = null
   }
   cache.set(key, out)
   return out
@@ -196,7 +214,7 @@ export function faceDataUrl(atlas: Atlas | null, face: Face, scale = 4): string 
   if (!tex) return null
   const c = document.createElement('canvas')
   c.width = c.height = 16 * scale
-  const ctx = c.getContext('2d')
+  const ctx = c.getContext('2d', { willReadFrequently: true })
   if (!ctx) return null
   ctx.imageSmoothingEnabled = false
   ctx.drawImage(tex, 0, 0, c.width, c.height)
